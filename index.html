@@ -3,11 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>  C-Directory</title>
-    <link rel="shortcut icon" href="img/sca.jpeg" type="image/jpeg">
-
-
-  <script src="https://cdn.tailwindcss.com"></script>
+  <title> C-Directory</title> 
+  <link rel="shortcut icon" href="img/sca.jpeg" type="image/jpeg">
+  <script src="https://cdn.tailwindcss.com"></script> 
   <style>
     .max-h-0 { max-height: 0; }
     .transition-max { transition: max-height 0.4s ease; }
@@ -3297,7 +3295,16 @@
       </div>
     </div>
   </div>
-<p class="text-600 text-center"> Developed by Noel Muang </p>
+<p class="text-600 text-center"> Developed by Noel Muang </p> 
+<picture>
+    <!-- Mobile Image -->
+    <source media="(max-width: 600px)" src="img/sca.jpeg">
+    <!-- Desktop Image -->
+    <source media="(min-width: 601px)" src="img/sca.jpeg">
+    <!-- Fallback Image for older browsers -->
+    <img src="img/sca.jpeg" alt="SCA">
+</picture>
+
   <script>
     // Sort groups alphabetically
     const directoryList = document.getElementById('directoryList');
