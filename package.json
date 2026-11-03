@@ -1,0 +1,16 @@
+{
+  "name": "zomi-cd",
+  "version": "1.0.0",
+  "description": "Zomi Catholic Community Directory",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "seed": "node seed.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.10.0",
+    "cheerio": "^1.1.0",
+    "express": "^5.1.0",
+    "multer": "^2.0.1"
+  }
+}

@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>C-Directory</title>
+  <link rel="shortcut icon" href="/img/sca.jpeg" type="image/jpeg">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .max-h-0 { max-height: 0; }
+    .transition-max { transition: max-height 0.4s ease; }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+  <div class="container mx-auto py-10 px-4 max-w-4xl">
+    <h1 class="text-3xl font-bold text-center text-blue-600 mb-4">Zomi Catholic Community Directory</h1>
+
+    <div class="flex flex-col sm:flex-row gap-3 mb-6">
+      <input id="searchInput" type="search" placeholder="Search names, phones, addresses..."
+        class="flex-1 rounded-lg border border-gray-300 p-3 shadow-sm">
+      <button id="adminBtn" class="rounded-lg bg-blue-600 text-white px-4 py-3 font-semibold hover:bg-blue-700">Admin login</button>
+    </div>
+
+    <div id="adminBar" class="hidden mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4 shadow-md space-y-3">
+      <p class="font-semibold text-blue-800">Admin mode — only you can change directory data.</p>
+      <div class="flex flex-wrap gap-2 items-center">
+        <input id="newGroupName" class="flex-1 min-w-[180px] rounded border p-2" placeholder="New group name">
+        <button id="addGroupBtn" class="rounded bg-green-600 text-white px-4 py-2 font-semibold hover:bg-green-700">Add group</button>
+        <button id="logoutBtn" class="rounded bg-gray-600 text-white px-4 py-2">Log out</button>
+      </div>
+    </div>
+
+    <div id="directoryList" class="space-y-4"></div>
+    <p class="text-center text-gray-600 mt-8">Developed by Noel Muang</p>
+  </div>
+
+  <div id="loginModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <form id="loginForm" class="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 space-y-3">
+      <h2 class="text-xl font-bold text-blue-700">Admin login</h2>
+      <p class="text-sm text-gray-600">Only an admin can add, edit, or delete directory data.</p>
+      <label class="block text-sm font-medium">Username
+        <input id="loginUser" class="mt-1 w-full rounded border p-2" autocomplete="username" required>
+      </label>
+      <label class="block text-sm font-medium">Password
+        <input id="loginPass" type="password" class="mt-1 w-full rounded border p-2" autocomplete="current-password" required>
+      </label>
+      <p id="loginError" class="hidden text-sm text-red-600"></p>
+      <div class="flex justify-end gap-2 pt-2">
+        <button type="button" id="cancelLogin" class="rounded px-4 py-2 bg-gray-200">Cancel</button>
+        <button type="submit" class="rounded px-4 py-2 bg-blue-600 text-white font-semibold">Log in</button>
+      </div>
+    </form>
+  </div>
+
+  <div id="modal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <form id="personForm" class="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 space-y-3 max-h-[90vh] overflow-y-auto">
+      <h2 id="modalTitle" class="text-xl font-bold text-blue-700">Add person</h2>
+      <input type="hidden" id="personId">
+      <label class="block text-sm font-medium">Group
+        <select id="personGroup" class="mt-1 w-full rounded border p-2" required></select>
+      </label>
+      <label class="block text-sm font-medium">Type
+        <select id="personKind" class="mt-1 w-full rounded border p-2">
+          <option value="household">Household</option>
+          <option value="leader">Leader</option>
+        </select>
+      </label>
+      <label class="block text-sm font-medium">Name
+        <input id="personName" class="mt-1 w-full rounded border p-2" required>
+      </label>
+      <label id="roleField" class="hidden block text-sm font-medium">Role / title
+        <input id="personRole" class="mt-1 w-full rounded border p-2">
+      </label>
+      <label id="phonesField" class="block text-sm font-medium">Phone numbers (one per line)
+        <textarea id="personPhones" class="mt-1 w-full rounded border p-2" rows="2"></textarea>
+      </label>
+      <label id="addressField" class="block text-sm font-medium">Address
+        <input id="personAddress" class="mt-1 w-full rounded border p-2">
+      </label>
+      <label id="mapsField" class="block text-sm font-medium">Google Maps link
+        <input id="personMaps" class="mt-1 w-full rounded border p-2">
+      </label>
+      <label id="photoField" class="hidden block text-sm font-medium">Photo URL
+        <input id="personPhoto" class="mt-1 w-full rounded border p-2">
+      </label>
+      <label id="uploadField" class="hidden block text-sm font-medium">Or upload photo
+        <input id="personFile" type="file" accept="image/*" class="mt-1 w-full">
+      </label>
+      <label id="familyField" class="block text-sm font-medium">Family members (one per line)
+        <textarea id="personFamily" class="mt-1 w-full rounded border p-2" rows="5"></textarea>
+      </label>
+      <div class="flex justify-end gap-2 pt-2">
+        <button type="button" id="cancelModal" class="rounded px-4 py-2 bg-gray-200">Cancel</button>
+        <button type="submit" class="rounded px-4 py-2 bg-blue-600 text-white font-semibold">Save</button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    let directory = [];
+    let admin = false;
+
+    const listEl = document.getElementById("directoryList");
+    const searchInput = document.getElementById("searchInput");
+    const adminBtn = document.getElementById("adminBtn");
+    const adminBar = document.getElementById("adminBar");
+    const modal = document.getElementById("modal");
+    const loginModal = document.getElementById("loginModal");
+    const form = document.getElementById("personForm");
+
+    async function api(url, options = {}) {
+      const headers = { ...(options.headers || {}) };
+      if (!(options.body instanceof FormData) && !headers["Content-Type"]) {
+        headers["Content-Type"] = "application/json";
+      }
+      const res = await fetch(url, { ...options, headers, credentials: "same-origin" });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 401 && admin && url !== "/api/me" && url !== "/api/login") {
+        setAdmin(false);
+        throw new Error("Admin login required");
+      }
+      if (!res.ok) throw new Error(data.error || "Request failed");
+      return data;
+    }
+
+    function photoSrc(url) {
+      if (!url) return "";
+      if (/^https?:\/\//i.test(url) || url.startsWith("/")) return url;
+      return "/" + url;
+    }
+
+    function telHref(phone) {
+      return "tel:" + phone.replace(/[^\d+]/g, "");
+    }
+
+    function escapeHtml(text) {
+      return String(text || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function setAdmin(on) {
+      admin = on;
+      adminBar.classList.toggle("hidden", !on);
+      adminBtn.textContent = on ? "Admin logged in" : "Admin login";
+      adminBtn.classList.toggle("bg-green-700", on);
+      adminBtn.classList.toggle("hover:bg-green-800", on);
+      adminBtn.classList.toggle("bg-blue-600", !on);
+      adminBtn.classList.toggle("hover:bg-blue-700", !on);
+      if (!on) modal.classList.add("hidden");
+      render();
+    }
+
+    function toggleKindFields() {
+      const leader = document.getElementById("personKind").value === "leader";
+      document.getElementById("roleField").classList.toggle("hidden", !leader);
+      document.getElementById("photoField").classList.toggle("hidden", !leader);
+      document.getElementById("uploadField").classList.toggle("hidden", !leader);
+      document.getElementById("phonesField").classList.toggle("hidden", leader);
+      document.getElementById("addressField").classList.toggle("hidden", leader);
+      document.getElementById("mapsField").classList.toggle("hidden", leader);
+      document.getElementById("familyField").classList.toggle("hidden", leader);
+    }
+
+    function fillGroupSelect(selectedId) {
+      const select = document.getElementById("personGroup");
+      select.innerHTML = directory.map((g) =>
+        `<option value="${g.id}" ${g.id === selectedId ? "selected" : ""}>${escapeHtml(g.name)}</option>`
+      ).join("");
+    }
+
+    function openPersonModal(person, groupId, kind) {
+      if (!admin) return openLogin();
+      fillGroupSelect(person?.group_id || groupId);
+      document.getElementById("modalTitle").textContent = person ? "Edit person" : "Add person";
+      document.getElementById("personId").value = person?.id || "";
+      document.getElementById("personKind").value = person?.kind || kind || "household";
+      document.getElementById("personName").value = person?.name || "";
+      document.getElementById("personRole").value = person?.role || "";
+      document.getElementById("personPhones").value = (person?.phones || []).join("\n");
+      document.getElementById("personAddress").value = person?.address || "";
+      document.getElementById("personMaps").value = person?.maps_url || "";
+      document.getElementById("personPhoto").value = person?.photo_url || "";
+      document.getElementById("personFile").value = "";
+      document.getElementById("personFamily").value = (person?.family || []).map((m) => m.name).join("\n");
+      toggleKindFields();
+      modal.classList.remove("hidden");
+    }
+
+    function render() {
+      const filter = searchInput.value.toLowerCase().trim();
+      listEl.innerHTML = "";
+      directory.forEach((group) => {
+        const peopleHtml = group.people.map((person, index) => {
+          if (person.kind === "leader") {
+            return `
+              <li class="p-4">
+                <div class="flex justify-between items-start gap-3">
+                  <div>
+                    <p class="font-semibold text-gray-800">${escapeHtml(person.name)}</p>
+                    <p class="text-gray-600">${escapeHtml(person.role || "")}</p>
+                    ${person.photo_url ? `<img class="w-36 h-36 rounded-full object-cover mt-2" src="${escapeHtml(photoSrc(person.photo_url))}" alt="">` : ""}
+                  </div>
+                  ${admin ? actionButtons(person, group) : ""}
+                </div>
+              </li>`;
+          }
+          const phones = (person.phones || []).map((p) =>
+            `<p class="text-gray-600"><a href="${telHref(p)}">📞 ${escapeHtml(p)}</a></p>`
+          ).join("");
+          const address = person.address
+            ? (person.maps_url
+              ? `<a class="text-gray-700" href="${escapeHtml(person.maps_url)}" target="_blank" rel="noopener">🏠 ${escapeHtml(person.address)}</a>`
+              : `<p class="text-gray-700">🏠 ${escapeHtml(person.address)}</p>`)
+            : "";
+          const family = (person.family || []).map((m) =>
+            `<li class="text-gray-700">${escapeHtml(m.name)}</li>`
+          ).join("");
+          return `
+            <li class="p-4">
+              <div class="flex justify-between items-start gap-3">
+                <div>
+                  <p class="font-semibold text-gray-800">${index + 1}. ${escapeHtml(person.name)}</p>
+                  ${phones}
+                  ${address}
+                </div>
+                <div class="flex flex-col items-end gap-2">
+                  <button class="toggle-sub text-sm text-blue-500">Members ▼</button>
+                  ${admin ? actionButtons(person, group) : ""}
+                </div>
+              </div>
+              <ul class="font-semibold pl-6 mt-2 max-h-0 overflow-hidden transition-max sub-content">${family}</ul>
+            </li>`;
+        }).join("");
+
+        const groupText = (group.name + " " + group.people.map((p) =>
+          [p.name, p.role, (p.phones || []).join(" "), p.address, (p.family || []).map((m) => m.name).join(" ")].join(" ")
+        ).join(" ")).toLowerCase();
+        if (filter && !groupText.includes(filter)) return;
+
+        const section = document.createElement("div");
+        section.className = "bg-white rounded-lg shadow-md overflow-hidden";
+        section.dataset.group = group.name;
+        section.innerHTML = `
+          <div class="flex items-stretch">
+            <button class="toggle-btn flex-1 flex justify-between items-center p-4 font-semibold text-blue-700 hover:bg-blue-50 text-left">
+              ${escapeHtml(group.name)}
+              <span class="transform transition-transform duration-300">▼</span>
+            </button>
+            ${admin ? `
+              <div class="flex items-center gap-1 pr-3">
+                <button data-add="${group.id}" class="text-sm text-green-700 font-semibold">+ Add</button>
+                <button data-rename="${group.id}" class="text-sm text-blue-600">Rename</button>
+                <button data-del-group="${group.id}" class="text-sm text-red-600">Delete</button>
+              </div>` : ""}
+          </div>
+          <ul class="divide-y divide-gray-200 max-h-0 overflow-hidden overflow-y-auto transition-max group-content ${filter ? "max-h-screen" : ""}">
+            ${peopleHtml || '<li class="p-4 text-gray-500">No people in this group yet.</li>'}
+          </ul>`;
+        listEl.appendChild(section);
+      });
+      bindToggles();
+      bindAdminActions();
+    }
+
+    function actionButtons(person) {
+      return `<div class="flex gap-2 text-sm">
+        <button data-edit="${person.id}" class="text-blue-600 font-semibold">Edit</button>
+        <button data-del="${person.id}" class="text-red-600">Delete</button>
+      </div>`;
+    }
+
+    function bindToggles() {
+      listEl.querySelectorAll(".toggle-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const content = btn.closest("div").nextElementSibling;
+          const arrow = btn.querySelector("span");
+          content.classList.toggle("max-h-0");
+          content.classList.toggle("max-h-screen");
+          arrow.classList.toggle("rotate-180");
+        });
+      });
+      listEl.querySelectorAll(".toggle-sub").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const content = btn.closest("div").parentElement.nextElementSibling;
+          content.classList.toggle("max-h-0");
+          content.classList.toggle("max-h-40");
+          btn.classList.toggle("text-blue-700");
+        });
+      });
+    }
+
+    function bindAdminActions() {
+      if (!admin) return;
+      listEl.querySelectorAll("[data-add]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const group = directory.find((g) => g.id === Number(btn.dataset.add));
+          const kind = group?.people.some((p) => p.kind === "leader") && !group.people.some((p) => p.kind === "household")
+            ? "leader" : "household";
+          openPersonModal(null, Number(btn.dataset.add), kind);
+        });
+      });
+      listEl.querySelectorAll("[data-rename]").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const group = directory.find((g) => g.id === Number(btn.dataset.rename));
+          const name = prompt("Group name", group?.name || "");
+          if (!name) return;
+          await api("/api/groups/" + group.id, { method: "PUT", body: JSON.stringify({ name }) });
+          await load();
+        });
+      });
+      listEl.querySelectorAll("[data-del-group]").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          if (!confirm("Delete this group and everyone in it?")) return;
+          await api("/api/groups/" + btn.dataset.delGroup, { method: "DELETE" });
+          await load();
+        });
+      });
+      listEl.querySelectorAll("[data-edit]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const id = Number(btn.dataset.edit);
+          for (const group of directory) {
+            const person = group.people.find((p) => p.id === id);
+            if (person) return openPersonModal(person, group.id);
+          }
+        });
+      });
+      listEl.querySelectorAll("[data-del]").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          if (!confirm("Delete this person?")) return;
+          await api("/api/people/" + btn.dataset.del, { method: "DELETE" });
+          await load();
+        });
+      });
+    }
+
+    async function load() {
+      directory = await api("/api/directory");
+      render();
+    }
+
+    function openLogin() {
+      document.getElementById("loginError").classList.add("hidden");
+      document.getElementById("loginPass").value = "";
+      loginModal.classList.remove("hidden");
+      document.getElementById("loginUser").focus();
+    }
+
+    adminBtn.addEventListener("click", async () => {
+      if (admin) return;
+      try {
+        const me = await api("/api/me");
+        if (me.admin) {
+          setAdmin(true);
+          return;
+        }
+      } catch {}
+      openLogin();
+    });
+
+    document.getElementById("cancelLogin").addEventListener("click", () => loginModal.classList.add("hidden"));
+    loginModal.addEventListener("click", (e) => { if (e.target === loginModal) loginModal.classList.add("hidden"); });
+
+    document.getElementById("loginForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const errorEl = document.getElementById("loginError");
+      try {
+        await api("/api/login", {
+          method: "POST",
+          body: JSON.stringify({
+            username: document.getElementById("loginUser").value.trim(),
+            password: document.getElementById("loginPass").value
+          })
+        });
+        loginModal.classList.add("hidden");
+        setAdmin(true);
+      } catch (err) {
+        errorEl.textContent = err.message;
+        errorEl.classList.remove("hidden");
+      }
+    });
+
+    document.getElementById("logoutBtn").addEventListener("click", async () => {
+      await api("/api/logout", { method: "POST" }).catch(() => {});
+      setAdmin(false);
+    });
+
+    document.getElementById("addGroupBtn").addEventListener("click", async () => {
+      if (!admin) return openLogin();
+      const name = document.getElementById("newGroupName").value.trim();
+      if (!name) return;
+      await api("/api/groups", { method: "POST", body: JSON.stringify({ name }) });
+      document.getElementById("newGroupName").value = "";
+      await load();
+    });
+
+    document.getElementById("personKind").addEventListener("change", toggleKindFields);
+    document.getElementById("cancelModal").addEventListener("click", () => modal.classList.add("hidden"));
+    modal.addEventListener("click", (e) => { if (e.target === modal) modal.classList.add("hidden"); });
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (!admin) return openLogin();
+      const id = document.getElementById("personId").value;
+      const kind = document.getElementById("personKind").value;
+      let photoUrl = document.getElementById("personPhoto").value.trim();
+      const file = document.getElementById("personFile").files[0];
+      if (file) {
+        const data = await api("/api/upload", { method: "POST", body: (() => {
+          const body = new FormData();
+          body.append("photo", file);
+          return body;
+        })() });
+        photoUrl = data.url;
+      }
+      const payload = {
+        group_id: Number(document.getElementById("personGroup").value),
+        kind,
+        name: document.getElementById("personName").value.trim(),
+        role: document.getElementById("personRole").value.trim(),
+        phones: document.getElementById("personPhones").value.split("\n"),
+        address: document.getElementById("personAddress").value.trim(),
+        maps_url: document.getElementById("personMaps").value.trim(),
+        photo_url: photoUrl,
+        family: document.getElementById("personFamily").value.split("\n")
+      };
+      if (id) await api("/api/people/" + id, { method: "PUT", body: JSON.stringify(payload) });
+      else await api("/api/people", { method: "POST", body: JSON.stringify(payload) });
+      modal.classList.add("hidden");
+      await load();
+    });
+
+    searchInput.addEventListener("input", render);
+    api("/api/me").then((me) => { if (me.admin) setAdmin(true); }).catch(() => {});
+    load().catch((err) => {
+      listEl.innerHTML = `<p class="text-center text-red-600">Could not load directory. Start the server with <code>npm start</code>.</p>`;
+      console.error(err);
+    });
+  </script>
+</body>
+</html>
